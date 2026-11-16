@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cajonera</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Archivo:wght@400;500;600&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --board:#56656f;
+  --peg:#45525a;
+  --tray:#eef0ec;
+  --ink:#1d2327;
+  --muted:#5d686f;
+  --accent:#ffcf3f;
+  --display:'Bricolage Grotesque',system-ui,sans-serif;
+  --body:'Archivo',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --tape:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+/* Layout: a pegboard wall; trays hang in an auto-fill grid; every item is a strip of label-maker tape */
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background-color:var(--board);background-image:radial-gradient(circle,var(--peg) 3px,transparent 3.6px);background-size:28px 28px;font-family:var(--body);color:var(--ink);line-height:1.45}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 18px 64px;display:flex;flex-direction:column;gap:20px}
+header{display:flex;flex-direction:column;gap:6px;color:#fff}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(2.2rem,6vw,3.4rem);line-height:1;margin:0;letter-spacing:-.02em;text-wrap:balance}
+.sub{margin:0;max-width:62ch;color:#dfe6ea;font-size:1.02rem}
+.intake{background:var(--tray);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:10px;box-shadow:0 6px 0 rgba(0,0,0,.2)}
+.lbl{font-family:var(--display);font-weight:600;font-size:1.05rem}
+textarea{width:100%;min-height:96px;font:inherit;border:2px solid #c6ccce;border-radius:8px;padding:10px 12px;resize:vertical;background:#fff;color:var(--ink)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+button{font:inherit;cursor:pointer}
+.primary{background:var(--ink);color:#fff;border:0;border-radius:7px;padding:10px 16px;font-weight:600}
+.primary:hover{background:#000}
+.ghost{background:transparent;color:var(--ink);border:2px solid var(--ink);border-radius:7px;padding:8px 14px;font-weight:600}
+.ghost:hover{background:rgba(0,0,0,.06)}
+.on-board{color:#fff;border-color:#fff}
+.on-board:hover{background:rgba(255,255,255,.12)}
+button:disabled{opacity:.5;cursor:wait}
+.status{font-size:.92rem;color:var(--muted)}
+.status button{background:none;border:0;padding:0;text-decoration:underline;color:var(--ink);font-weight:600}
+.example{background:var(--accent);color:var(--ink);border-radius:8px;padding:10px 14px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;font-weight:500}
+.example .ghost{padding:5px 10px}
+.bins{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:20px;align-items:start}
+.empty-board{grid-column:1/-1;color:#fff;background:rgba(0,0,0,.18);border:2px dashed rgba(255,255,255,.5);border-radius:10px;padding:28px;text-align:center}
+.bin{background:var(--tray);border-radius:10px;box-shadow:0 6px 0 rgba(0,0,0,.22);display:flex;flex-direction:column;position:relative}
+.bin::before{content:"";position:absolute;top:-9px;left:50%;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:#9aa6ad;box-shadow:inset 0 -2px 0 rgba(0,0,0,.25)}
+.bin.over{outline:3px dashed var(--accent);outline-offset:3px}
+.bin-head{display:flex;align-items:center;gap:6px;padding:14px 12px 10px 14px;border-bottom:4px solid var(--c)}
+.bin-name{font-family:var(--display);font-weight:800;font-size:1.2rem;margin:0;flex:1;min-width:0;overflow-wrap:anywhere;outline:none;border-radius:4px}
+.bin-name[contenteditable="true"]{background:#fff;box-shadow:0 0 0 2px var(--c);padding:0 4px}
+.count{font-family:var(--tape);font-size:.78rem;background:var(--c);color:var(--ct);padding:2px 8px;border-radius:4px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.icon{background:none;border:0;width:30px;height:30px;border-radius:6px;color:var(--muted);font-size:1.05rem;line-height:1}
+.icon:hover{background:rgba(0,0,0,.07);color:var(--ink)}
+.movehere{margin:10px 12px 0;background:var(--accent);border:2px solid var(--ink);border-radius:7px;padding:7px;font-weight:600}
+.items{list-style:none;margin:0;padding:12px;display:flex;flex-direction:column;gap:8px;min-height:60px}
+.empty{color:var(--muted);font-size:.9rem;padding:8px 2px}
+.tape{display:flex;align-items:center;gap:6px;background:var(--c);color:var(--ct);font-family:var(--tape);font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:.8rem;padding:6px 10px;cursor:grab;clip-path:polygon(0 0,100% 0,calc(100% - 5px) 50%,100% 100%,0 100%,5px 50%);transition:transform .12s}
+.tape:active{cursor:grabbing}
+.tape.dragging{opacity:.4}
+.tape.picked{transform:translateX(6px);box-shadow:inset 0 0 0 3px var(--accent)}
+.tape .txt{flex:1;min-width:0;overflow-wrap:anywhere;text-shadow:0 1px 0 rgba(0,0,0,.28),0 -1px 0 rgba(255,255,255,.18)}
+.tape.done .txt{text-decoration:line-through;opacity:.55}
+.tk{flex:none;width:20px;height:20px;border:2px solid currentColor;border-radius:4px;background:transparent;color:inherit;padding:0;font-size:.8rem;line-height:1;display:grid;place-items:center}
+.ib{flex:none;background:transparent;border:0;color:inherit;opacity:.7;width:24px;height:24px;border-radius:4px;padding:0;font-size:.95rem;line-height:1}
+.ib:hover{opacity:1;background:rgba(255,255,255,.18)}
+.bin-add{display:flex;gap:6px;padding:0 12px 12px}
+.bin-add input{flex:1;min-width:0;font:inherit;font-size:.92rem;border:2px solid #c6ccce;border-radius:7px;padding:6px 10px;background:#fff;color:var(--ink)}
+.bin-add button{background:var(--ink);color:#fff;border:0;border-radius:7px;width:36px;font-size:1.1rem}
+.foot{display:flex;gap:14px;flex-wrap:wrap;align-items:center;color:#fff}
+.totals{font-variant-numeric:tabular-nums;color:#dfe6ea}
+.save{margin-left:auto;font-size:.85rem;color:#dfe6ea}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+@media (max-width:420px){.wrap{padding:22px 16px 48px}.save{margin-left:0}}
+@media (prefers-reduced-motion:reduce){.tape{transition:none}}
+.authbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;background:rgba(0,0,0,.22);color:#fff;border-radius:10px;padding:10px 14px}
+.authbar .who{flex:1;min-width:180px;font-size:.95rem}
+.authbar .ghost{color:#fff;border-color:#fff;padding:6px 12px}
+.warn{background:#ffe1dd;color:#7a1a12;border-radius:8px;padding:10px 14px;font-weight:500}
+body.ro .tk,body.ro .ib,body.ro .icon,body.ro .bin-add,body.ro #addBin,body.ro .intake,body.ro .movehere{display:none}
+body.ro .tape{cursor:default}
+</style>
+</head>
+<body class="ro">
+<div class="wrap">
+  <header>
+    <h1>Cajonera</h1>
+    <p class="sub">Escribe lo que tienes pendiente, sepáralo en cajones y táchalo cuando lo termines. Todos los que abren este link ven la misma cajonera.</p>
+  </header>
+
+  <div id="configWarn" class="warn" hidden>Falta pegar la configuración de Firebase en este archivo. Mientras tanto la cajonera funciona solo en este navegador.</div>
+
+  <div class="authbar">
+    <span class="who" id="who">Cargando…</span>
+    <button id="loginBtn" class="ghost" hidden>Iniciar sesión con Google para editar</button>
+    <button id="logoutBtn" class="ghost" hidden>Cerrar sesión</button>
+  </div>
+
+  <section class="intake">
+    <label for="dump" class="lbl">Añade cosas</label>
+    <textarea id="dump" placeholder="Una por línea, o separadas por comas. ej. estudiar para el parcial, comprar leche, llamar a la abuela"></textarea>
+    <div class="row">
+      <label for="target" class="lbl" style="font-size:.95rem">Guardar en</label>
+      <select id="target" style="font:inherit;padding:8px;border-radius:7px;border:2px solid #c6ccce"></select>
+      <button id="addRaw" class="primary">Añadir</button>
+      <span id="status" class="status" role="status"></span>
+    </div>
+  </section>
+
+  <section class="bins" id="bins"></section>
+
+  <div class="foot">
+    <button id="addBin" class="ghost on-board">+ Nuevo cajón</button>
+    <span class="totals" id="totals"></span>
+    <span class="save" id="save"></span>
+  </div>
+</div>
+
+<script type="module">
+/* ============================================================
+   1) PEGA AQUÍ LA CONFIGURACIÓN DE TU PROYECTO DE FIREBASE
+   (Consola de Firebase > Configuración del proyecto > Tus apps)
+   ============================================================ */
+const firebaseConfig = {
+  apiKey: "AIzaSyANigwAE5FCb5ORD6q9s9rmqSLcZehqg4o",
+  authDomain: "cajonera-7db72.firebaseapp.com",
+  projectId: "cajonera-7db72",
+  storageBucket: "cajonera-7db72.firebasestorage.app",
+  messagingSenderId: "150573159947",
+  appId: "1:150573159947:web:fa6f54ad029a0922aed90e"
+};
+/* ============================================================ */
+
+const COLORS=[{c:'#2a5bd7',t:'#fff'},{c:'#1f8a5b',t:'#fff'},{c:'#f2c230',t:'#1d2327'},{c:'#6b3fb8',t:'#fff'},{c:'#d63c32',t:'#fff'},{c:'#1d2327',t:'#fff'},{c:'#e06a1b',t:'#fff'},{c:'#0f8a99',t:'#fff'}];
+const EXAMPLE={bins:[
+  {id:'b1',name:'Universidad',color:0,items:[{id:'i1',text:'Leer capítulo 4 de Microeconomía',done:false},{id:'i2',text:'Entregar informe de laboratorio el jueves',done:false}]},
+  {id:'b2',name:'Casa',color:1,items:[{id:'i3',text:'Lavar la ropa',done:false},{id:'i4',text:'Pagar el recibo de luz',done:true}]},
+  {id:'b3',name:'Compras',color:2,items:[{id:'i5',text:'Café',done:false},{id:'i6',text:'Pilas AA',done:false}]}
+]};
+const LOCAL_KEY='cajonera-local-v1';
+
+let state=JSON.parse(JSON.stringify(EXAMPLE));
+let canEdit=false, picked=null, undoSnap=null, saveT=null;
+let remote=null; // {db, docRef, setDoc} cuando Firebase está listo
+
+const $=id=>document.getElementById(id);
+const binsEl=$('bins'),dump=$('dump'),statusEl=$('status'),saveEl=$('save');
+const uid=()=>Math.random().toString(36).slice(2,9);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const col=b=>COLORS[b.color%COLORS.length];
+const findBin=id=>state.bins.find(b=>b.id===id);
+function findItem(id){for(const b of state.bins){const i=b.items.findIndex(x=>x.id===id);if(i>=0)return {bin:b,idx:i,item:b.items[i]};}return null;}
+function nextColor(){const used=state.bins.map(b=>b.color);for(let i=0;i<COLORS.length;i++)if(!used.includes(i))return i;return state.bins.length%COLORS.length;}
+function newBin(name){const b={id:uid(),name,color:nextColor(),items:[]};state.bins.push(b);return b;}
+function snap(){undoSnap=JSON.stringify(state);}
+function setStatus(msg,withUndo){statusEl.innerHTML=esc(msg)+(withUndo?' <button id="undo">Deshacer</button>':'');}
+function setEditable(on){canEdit=on;document.body.classList.toggle('ro',!on);}
+
+function render(){
+  if(!state.bins.length) binsEl.innerHTML='<div class="empty-board">Aún no hay cajones. Crea uno con «+ Nuevo cajón».</div>';
+  else binsEl.innerHTML=state.bins.map(b=>{
+    const c=col(b),pend=b.items.filter(i=>!i.done).length;
+    const items=b.items.length?b.items.map(it=>
+      `<li class="tape${it.done?' done':''}${picked===it.id?' picked':''}" draggable="${canEdit}" data-item="${it.id}">`+
+      `<button class="tk" data-act="toggle" aria-label="${it.done?'Desmarcar':'Marcar como hecho'}">${it.done?'✓':''}</button>`+
+      `<span class="txt">${esc(it.text)}</span>`+
+      `<button class="ib" data-act="pick" aria-label="Mover a otro cajón" title="Mover">⇄</button>`+
+      `<button class="ib" data-act="del" aria-label="Eliminar" title="Eliminar">×</button></li>`).join('')
+      :'<li class="empty">Vacío.</li>';
+    return `<article class="bin" data-bin="${b.id}" style="--c:${c.c};--ct:${c.t}">`+
+      `<div class="bin-head"><h2 class="bin-name">${esc(b.name)}</h2><span class="count" title="pendientes / total">${pend}/${b.items.length}</span>`+
+      `<button class="icon" data-act="rename" aria-label="Renombrar cajón" title="Renombrar">✎</button>`+
+      `<button class="icon" data-act="delbin" aria-label="Eliminar cajón" title="Eliminar cajón">×</button></div>`+
+      (picked?'<button class="movehere" data-act="movehere">Mover aquí</button>':'')+
+      `<ul class="items">${items}</ul>`+
+      `<form class="bin-add" data-bin="${b.id}"><input id="add-${b.id}" aria-label="Añadir a ${esc(b.name)}" placeholder="Añadir…" autocomplete="off"><button type="submit" aria-label="Añadir">+</button></form>`+
+    `</article>`;
+  }).join('');
+  let all=0,done=0;state.bins.forEach(b=>b.items.forEach(i=>{all++;if(i.done)done++;}));
+  $('totals').textContent=`${all-done} pendientes · ${done} hechos`;
+  const sel=$('target'),prev=sel.value;
+  sel.innerHTML=state.bins.map(b=>`<option value="${b.id}">${esc(b.name)}</option>`).join('')+'<option value="__new">Sin clasificar</option>';
+  if([...sel.options].some(o=>o.value===prev))sel.value=prev;
+}
+
+function commit(){render();scheduleSave();}
+function scheduleSave(){clearTimeout(saveT);saveEl.textContent='Guardando…';saveT=setTimeout(save,700);}
+async function save(){
+  saveT=null;
+  if(remote){
+    try{await remote.setDoc(remote.docRef,{bins:state.bins,updatedAt:Date.now()});saveEl.textContent='Guardado para todos';}
+    catch(e){
+      if(e&&e.code==='permission-denied'){saveEl.textContent='';setStatus('Tu cuenta no está autorizada para editar. Pide al dueño que agregue tu correo.');setEditable(false);}
+      else saveEl.textContent='No se pudo guardar. Revisa tu conexión.';
+    }
+  } else {
+    try{localStorage.setItem(LOCAL_KEY,JSON.stringify(state));saveEl.textContent='Guardado en este navegador';}catch(e){saveEl.textContent='Sin guardado';}
+  }
+}
+
+function splitRaw(raw){return raw.split(/\n|;|,/).map(s=>s.replace(/^[\s\-•*·]+/,'').trim()).filter(Boolean);}
+function addRaw(){
+  const parts=splitRaw(dump.value);if(!parts.length){setStatus('Escribe algo primero.');dump.focus();return;}
+  snap();const t=$('target').value;
+  const b=(t==='__new')?(state.bins.find(x=>x.name==='Sin clasificar')||newBin('Sin clasificar')):findBin(t);
+  parts.forEach(text=>b.items.push({id:uid(),text,done:false}));
+  dump.value='';commit();setStatus(`Añadí ${parts.length} a «${b.name}».`,true);
+}
+
+function startRename(binId){
+  const h=binsEl.querySelector(`[data-bin="${binId}"] .bin-name`);if(!h)return;
+  const b=findBin(binId),old=b.name;
+  h.contentEditable='true';h.focus();
+  const r=document.createRange();r.selectNodeContents(h);const s=getSelection();s.removeAllRanges();s.addRange(r);
+  const finish=keep=>{h.removeEventListener('blur',onBlur);h.removeEventListener('keydown',onKey);const v=h.textContent.trim().slice(0,30);if(keep&&v&&v!==old){b.name=v;commit();}else render();};
+  const onBlur=()=>finish(true);
+  const onKey=e=>{if(e.key==='Enter'){e.preventDefault();h.blur();}else if(e.key==='Escape'){e.preventDefault();h.removeEventListener('blur',onBlur);finish(false);}};
+  h.addEventListener('blur',onBlur);h.addEventListener('keydown',onKey);
+}
+
+/* eventos */
+$('addRaw').addEventListener('click',addRaw);
+dump.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();addRaw();}});
+$('addBin').addEventListener('click',()=>{snap();const b=newBin('Nuevo cajón');commit();startRename(b.id);});
+statusEl.addEventListener('click',e=>{if(e.target.id==='undo'&&undoSnap){state=JSON.parse(undoSnap);undoSnap=null;picked=null;commit();setStatus('Deshecho.');}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&picked){picked=null;render();}});
+binsEl.addEventListener('click',e=>{
+  if(!canEdit)return;
+  const btn=e.target.closest('[data-act]');if(!btn)return;
+  const act=btn.dataset.act,binEl=btn.closest('[data-bin]'),li=btn.closest('[data-item]'),binId=binEl&&binEl.dataset.bin;
+  if(act==='toggle'){const f=findItem(li.dataset.item);f.item.done=!f.item.done;commit();}
+  else if(act==='del'){snap();const f=findItem(li.dataset.item);f.bin.items.splice(f.idx,1);if(picked===f.item.id)picked=null;commit();setStatus(`Eliminé «${f.item.text}».`,true);}
+  else if(act==='pick'){const id=li.dataset.item;picked=(picked===id)?null:id;render();if(picked)setStatus('Elige el cajón y pulsa «Mover aquí». Esc para cancelar.');}
+  else if(act==='movehere'){const f=findItem(picked);if(f){f.bin.items.splice(f.idx,1);findBin(binId).items.push(f.item);}picked=null;commit();setStatus('');}
+  else if(act==='rename')startRename(binId);
+  else if(act==='delbin'){snap();const b=findBin(binId);state.bins=state.bins.filter(x=>x.id!==binId);picked=null;commit();setStatus(`Eliminé el cajón «${b.name}».`,true);}
+});
+binsEl.addEventListener('submit',e=>{
+  e.preventDefault();if(!canEdit)return;
+  const form=e.target,binId=form.dataset.bin,v=form.querySelector('input').value.trim();if(!v)return;
+  findBin(binId).items.push({id:uid(),text:v,done:false});commit();const again=$('add-'+binId);if(again)again.focus();
+});
+let dragId=null;
+binsEl.addEventListener('dragstart',e=>{if(!canEdit)return;const li=e.target.closest&&e.target.closest('[data-item]');if(!li)return;dragId=li.dataset.item;li.classList.add('dragging');try{e.dataTransfer.setData('text/plain',dragId);e.dataTransfer.effectAllowed='move';}catch(_){}});
+binsEl.addEventListener('dragend',()=>{dragId=null;binsEl.querySelectorAll('.over,.dragging').forEach(n=>n.classList.remove('over','dragging'));});
+binsEl.addEventListener('dragover',e=>{if(!dragId)return;const bin=e.target.closest('.bin');if(!bin)return;e.preventDefault();binsEl.querySelectorAll('.bin.over').forEach(n=>{if(n!==bin)n.classList.remove('over');});bin.classList.add('over');});
+binsEl.addEventListener('drop',e=>{
+  if(!dragId)return;const bin=e.target.closest('.bin');if(!bin)return;e.preventDefault();
+  const f=findItem(dragId);if(!f)return;const target=findBin(bin.dataset.bin);const overLi=e.target.closest('[data-item]');
+  f.bin.items.splice(f.idx,1);
+  if(overLi&&overLi.dataset.item!==dragId){const t=target.items.findIndex(i=>i.id===overLi.dataset.item);target.items.splice(t<0?target.items.length:t,0,f.item);}
+  else target.items.push(f.item);
+  dragId=null;commit();
+});
+
+render();
+
+/* ---------- Firebase ---------- */
+const configured=!Object.values(firebaseConfig).some(v=>String(v).includes('PEGA_AQUI'));
+if(!configured){
+  $('configWarn').hidden=false;
+  try{const s=localStorage.getItem(LOCAL_KEY);if(s)state=JSON.parse(s);}catch(_){}
+  $('who').textContent='Modo local: los cambios se guardan solo en este navegador.';
+  setEditable(true);render();
+} else {
+  const V='10.14.1';
+  const [{initializeApp},{getFirestore,doc,onSnapshot,setDoc},{getAuth,GoogleAuthProvider,signInWithPopup,signOut,onAuthStateChanged}]=await Promise.all([
+    import(`https://www.gstatic.com/firebasejs/${V}/firebase-app.js`),
+    import(`https://www.gstatic.com/firebasejs/${V}/firebase-firestore.js`),
+    import(`https://www.gstatic.com/firebasejs/${V}/firebase-auth.js`)
+  ]);
+  const app=initializeApp(firebaseConfig);
+  const db=getFirestore(app),auth=getAuth(app);
+  const docRef=doc(db,'cajoneras','principal');
+  remote={db,docRef,setDoc};
+
+  onSnapshot(docRef,snapDoc=>{
+    if(saveT)return; // hay un cambio local esperando guardarse
+    if(snapDoc.exists()){const d=snapDoc.data();state={bins:Array.isArray(d.bins)?d.bins:[]};}
+    render();
+  },err=>{setStatus('No pude leer la cajonera: '+(err.code==='permission-denied'?'revisa las reglas de Firestore.':err.message));});
+
+  $('loginBtn').addEventListener('click',async()=>{
+    try{await signInWithPopup(auth,new GoogleAuthProvider());}
+    catch(e){setStatus(e.code==='auth/unauthorized-domain'?'Este dominio no está autorizado en Firebase (Authentication > Configuración > Dominios autorizados).':'No se pudo iniciar sesión: '+e.code);}
+  });
+  $('logoutBtn').addEventListener('click',()=>signOut(auth));
+
+  onAuthStateChanged(auth,user=>{
+    $('loginBtn').hidden=!!user;$('logoutBtn').hidden=!user;
+    if(user){$('who').textContent='Editando como '+user.email;setEditable(true);}
+    else{$('who').textContent='Estás viendo la cajonera. Inicia sesión para editar.';setEditable(false);}
+    picked=null;render();
+  });
+}
+</script>
+</body>
+</html>
